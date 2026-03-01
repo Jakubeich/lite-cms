@@ -2,6 +2,26 @@
   "name": "@litecms/react",
   "version": "0.1.0",
   "description": "React components for LiteCMS inline editing",
+  "author": "Jakub Mitrega <jakubmitrega1@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/jakubeich/litecms#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakubeich/litecms.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/jakubeich/litecms/issues"
+  },
+  "keywords": [
+    "cms",
+    "litecms",
+    "inline-editing",
+    "react",
+    "contenteditable",
+    "nextjs",
+    "typescript"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -23,7 +43,7 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "@litecms/core": "workspace:*"
+    "@litecms/core": "^0.1.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
@@ -35,6 +55,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "license": "MIT"
+  }
 }

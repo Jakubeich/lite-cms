@@ -1,7 +1,27 @@
 {
   "name": "@litecms/core",
   "version": "0.1.0",
-  "description": "Core types and utilities for LiteCMS",
+  "description": "Core types and utilities for LiteCMS - lightweight inline editing CMS",
+  "author": "Jakub Mitrega <jakubmitrega1@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/jakubeich/litecms#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakubeich/litecms.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/jakubeich/litecms/issues"
+  },
+  "keywords": [
+    "cms",
+    "litecms",
+    "inline-editing",
+    "content-management",
+    "react",
+    "nextjs",
+    "typescript"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,6 +44,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "license": "MIT"
+  }
 }
