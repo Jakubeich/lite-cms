@@ -1,0 +1,58 @@
+{
+  "name": "@litecms/richtext",
+  "version": "0.1.0",
+  "description": "Rich text editor for LiteCMS powered by Tiptap",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "clean": "rm -rf dist",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@litecms/core": "workspace:*",
+    "@tiptap/core": "^2.2.0",
+    "@tiptap/extension-link": "^2.2.0",
+    "@tiptap/extension-placeholder": "^2.2.0",
+    "@tiptap/extension-underline": "^2.2.0",
+    "@tiptap/pm": "^2.2.0",
+    "@tiptap/react": "^2.2.0",
+    "@tiptap/starter-kit": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "keywords": [
+    "litecms",
+    "richtext",
+    "editor",
+    "tiptap",
+    "wysiwyg",
+    "cms"
+  ]
+}

@@ -1,0 +1,267 @@
+// LiteCMS Prisma Schema
+// This is a reference schema - copy to your project and customize as needed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Change to "mysql" or "sqlite" as needed
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CONTENT MANAGEMENT
+// ============================================================================
+
+/// Main content storage
+model LiteCMSContent {
+  id        String   @id @default(cuid())
+  field     String   @unique
+  value     String   @db.Text
+  type      String   @default("simple") // simple, repeatable, structured, richtext, media
+  locale    String?
+  version   Int      @default(1)
+
+  // Publishing
+  status    String   @default("published") // draft, published, scheduled, archived
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  draftValue  String?  @db.Text
+
+  // Metadata
+  metadata  Json?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User tracking
+  createdBy String?
+  updatedBy String?
+  publishedBy String?
+
+  // Relations
+  versions  LiteCMSContentVersion[]
+
+  @@index([field])
+  @@index([locale])
+  @@index([status])
+  @@index([type])
+  @@map("litecms_content")
+}
+
+/// Content version history
+model LiteCMSContentVersion {
+  id        String   @id @default(cuid())
+  contentId String
+  content   LiteCMSContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  version   Int
+  value     String   @db.Text
+  message   String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@unique([contentId, version])
+  @@index([contentId])
+  @@map("litecms_content_versions")
+}
+
+// ============================================================================
+// MEDIA MANAGEMENT
+// ============================================================================
+
+/// Media file storage
+model LiteCMSMedia {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  thumbnailUrl String?
+
+  // Image dimensions
+  width        Int?
+  height       Int?
+
+  // Metadata
+  alt          String?
+  title        String?
+  caption      String?
+  metadata     Json?
+
+  // Organization
+  folder       String?
+  tags         String[]
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  uploadedBy   String?
+
+  @@index([mimeType])
+  @@index([folder])
+  @@index([tags])
+  @@map("litecms_media")
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+/// User accounts
+model LiteCMSUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?  // Hashed password for built-in auth
+  role      LiteCMSUserRole @default(VIEWER)
+  avatar    String?
+
+  // OAuth
+  provider  String?  // google, github, etc.
+  providerId String?
+
+  // Status
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+
+  // Metadata
+  metadata  Json?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sessions  LiteCMSSession[]
+
+  @@unique([provider, providerId])
+  @@index([email])
+  @@index([role])
+  @@map("litecms_users")
+}
+
+/// User roles
+enum LiteCMSUserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+/// User sessions
+model LiteCMSSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      LiteCMSUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  // Session metadata
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("litecms_sessions")
+}
+
+// ============================================================================
+// SEO MANAGEMENT
+// ============================================================================
+
+/// Page SEO data
+model LiteCMSSEO {
+  id          String   @id @default(cuid())
+  pageId      String   @unique
+  path        String
+  locale      String?
+
+  // Basic SEO
+  title       String?
+  description String?  @db.Text
+  keywords    String[]
+  canonical   String?
+
+  // Robots
+  robotsIndex  Boolean @default(true)
+  robotsFollow Boolean @default(true)
+
+  // Open Graph
+  ogTitle       String?
+  ogDescription String? @db.Text
+  ogImage       String?
+  ogType        String? @default("website")
+
+  // Twitter
+  twitterCard    String? @default("summary_large_image")
+  twitterSite    String?
+  twitterCreator String?
+
+  // Structured data (JSON-LD)
+  structuredData Json?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@index([pageId])
+  @@index([path])
+  @@index([locale])
+  @@map("litecms_seo")
+}
+
+// ============================================================================
+// COLLABORATION
+// ============================================================================
+
+/// Active editing sessions for real-time collaboration
+model LiteCMSPresence {
+  id        String   @id @default(cuid())
+  userId    String
+  field     String?
+
+  // Cursor position
+  cursorField    String?
+  cursorPosition Int?
+
+  // Selection
+  selectionStart Int?
+  selectionEnd   Int?
+
+  // User color for cursor
+  color     String
+
+  // Activity
+  isActive  Boolean @default(true)
+  lastSeen  DateTime @default(now())
+
+  @@index([userId])
+  @@index([field])
+  @@index([isActive])
+  @@map("litecms_presence")
+}
+
+/// Field locks for collaborative editing
+model LiteCMSLock {
+  id        String   @id @default(cuid())
+  field     String   @unique
+  userId    String
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([field])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("litecms_locks")
+}

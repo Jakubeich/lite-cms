@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* LiteCMS editable styles */
+.litecms-editable:hover {
+  outline-color: #93c5fd !important;
+}
+
+.litecms-editable:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+}

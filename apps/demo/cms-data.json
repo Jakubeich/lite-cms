@@ -1,0 +1,26 @@
+{
+  "site.name": {
+    "id": "1",
+    "field": "site.name",
+    "value": "LiteCMS Demo",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  "hero.title": {
+    "id": "2",
+    "field": "hero.title",
+    "value": "Inline Editing for Modern Web Apps",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  "hero.subtitle": {
+    "id": "3",
+    "field": "hero.subtitle",
+    "value": "LiteCMS lets you edit content directly on your website. No separate admin panel needed.",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  "test.field": {
+    "id": "1772320765457-ym2p1q9",
+    "field": "test.field",
+    "value": "Test value",
+    "updatedAt": "2026-02-28T23:19:25.457Z"
+  }
+}
