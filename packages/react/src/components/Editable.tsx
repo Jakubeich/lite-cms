@@ -1,17 +1,32 @@
 "use client";
 
-import {
+import React, {
   useRef,
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import { useCMSContext } from "../context/CMSContext";
+import {
+  parseSimpleFormatting,
+  hasFormatting,
+  type FormattingTag,
+  type FormattedSegment,
+} from "@litecms/core";
 
-interface EditableProps {
+/**
+ * Editable outline style options
+ */
+export type EditableOutlineStyle = "solid" | "dashed" | "dotted" | "none";
+
+/**
+ * Editable component props
+ */
+export interface EditableProps {
   /**
    * Unique field identifier (e.g., "hero.title", "footer.copyright")
    */
@@ -53,7 +68,8 @@ interface EditableProps {
   multiline?: boolean;
 
   /**
-   * Debounce delay for saving (ms)
+   * Debounce delay for saving (ms) - NOT USED, kept for API compatibility
+   * @deprecated Content is saved on blur to prevent cursor jumping
    */
   saveDelay?: number;
 
@@ -61,28 +77,103 @@ interface EditableProps {
    * Callback when content changes
    */
   onChange?: (value: string) => void;
+
+  /**
+   * Locale suffix for i18n (e.g., "en" for English)
+   * If provided, field key becomes "{field}_{locale}"
+   */
+  locale?: string;
+
+  /**
+   * Enable simple text formatting (**bold**, <b>, <strong>)
+   * @default true
+   */
+  enableFormatting?: boolean;
+
+  /**
+   * Custom formatting tags (extends default)
+   */
+  formattingTags?: FormattingTag[];
+
+  /**
+   * Outline style when in edit mode
+   * @default "dashed"
+   */
+  outlineStyle?: EditableOutlineStyle;
+
+  /**
+   * Outline color when editable (not focused)
+   * @default "#8b5cf6" (purple)
+   */
+  outlineColor?: string;
+
+  /**
+   * Outline color when focused/editing
+   * @default "#3b82f6" (blue)
+   */
+  focusColor?: string;
+
+  /**
+   * Show loading state
+   */
+  isLoading?: boolean;
 }
 
-// Simple debounce for this component
-function useDebounce<T extends (...args: string[]) => void>(
-  fn: T,
-  delay: number
-): T {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+/**
+ * Render formatted segments as React elements
+ */
+function renderFormattedContent(
+  segments: FormattedSegment[],
+  boldClassName?: string
+): ReactNode {
+  return segments.map((segment, index) => {
+    if (segment.type === "text") {
+      return segment.content;
+    }
 
-  const debouncedFn = useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => fn(...args), delay);
-    },
-    [fn, delay]
-  ) as T;
+    if (segment.type === "strong") {
+      return (
+        <strong
+          key={index}
+          className={boldClassName || segment.className}
+        >
+          {segment.content}
+        </strong>
+      );
+    }
 
-  return debouncedFn;
+    if (segment.type === "em") {
+      return (
+        <em key={index} className={segment.className}>
+          {segment.content}
+        </em>
+      );
+    }
+
+    if (segment.type === "code") {
+      return (
+        <code key={index} className={segment.className}>
+          {segment.content}
+        </code>
+      );
+    }
+
+    // Fallback for custom tags
+    return (
+      <span key={index} className={segment.className}>
+        {segment.content}
+      </span>
+    );
+  });
 }
 
+/**
+ * Inline editable text component
+ * Supports localization, formatting, and customizable edit indicators
+ *
+ * IMPORTANT: This component uses an uncontrolled pattern for contentEditable
+ * to prevent cursor jumping issues. Content is set via ref, not React children.
+ */
 export function Editable({
   field,
   defaultValue = "",
@@ -92,54 +183,48 @@ export function Editable({
   children,
   placeholder = "Click to edit...",
   multiline = false,
-  saveDelay = 500,
   onChange,
+  locale,
+  enableFormatting = true,
+  formattingTags,
+  outlineStyle = "dashed",
+  outlineColor = "#8b5cf6",
+  focusColor = "#3b82f6",
+  isLoading: externalLoading,
 }: EditableProps) {
   const { state, auth, getContent, updateContent } = useCMSContext();
   const ref = useRef<HTMLSpanElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState<string>("");
+  // Track if we've initialized this specific element instance
+  const mountedRef = useRef(false);
 
-  const storedValue = getContent(field);
+  // Build full field key with locale
+  const fullField = locale ? `${field}_${locale}` : field;
+
+  const storedValue = getContent(fullField);
   const displayValue =
     storedValue ?? (typeof children === "string" ? children : defaultValue);
 
-  // Sync local value with stored value
-  useEffect(() => {
-    setLocalValue(displayValue);
-  }, [displayValue]);
+  const isAdmin = auth.isAdmin;
+  const canEdit = isAdmin && state.isEditMode;
+  const isLoading = externalLoading ?? state.isLoading;
 
-  // Debounced save function
-  const saveContent = useCallback(
-    (value: string) => {
-      updateContent(field, value);
-    },
-    [field, updateContent]
-  );
+  // Handle focus - mark as editing
+  const handleFocus = useCallback(() => {
+    setIsEditing(true);
+  }, []);
 
-  const debouncedSave = useDebounce(saveContent, saveDelay);
-
-  const handleInput = useCallback(() => {
-    if (!ref.current) return;
-    const newValue = ref.current.innerText;
-    setLocalValue(newValue);
-    onChange?.(newValue);
-    debouncedSave(newValue);
-  }, [onChange, debouncedSave]);
-
+  // Handle blur - save content and stop editing
   const handleBlur = useCallback(() => {
     setIsEditing(false);
     if (ref.current) {
       const newValue = ref.current.innerText;
       if (newValue !== displayValue) {
-        updateContent(field, newValue);
+        onChange?.(newValue);
+        updateContent(fullField, newValue);
       }
     }
-  }, [field, displayValue, updateContent]);
-
-  const handleFocus = useCallback(() => {
-    setIsEditing(true);
-  }, []);
+  }, [fullField, displayValue, updateContent, onChange]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLSpanElement>) => {
@@ -155,54 +240,93 @@ export function Editable({
     [multiline]
   );
 
-  const isAdmin = auth.isAdmin;
-  const canEdit = isAdmin && state.isEditMode;
+  // Reset mounted state when canEdit changes
+  useEffect(() => {
+    mountedRef.current = false;
+  }, [canEdit]);
+
+  // Initialize content when element mounts or displayValue changes
+  // This runs when: entering edit mode, displayValue updates, or after blur
+  useEffect(() => {
+    if (ref.current && canEdit && !isEditing) {
+      const currentContent = ref.current.innerText || "";
+      const valueToSet = displayValue || placeholder;
+      // Always set content on first mount, or when value differs
+      if (!mountedRef.current || currentContent !== valueToSet) {
+        ref.current.innerText = valueToSet;
+        mountedRef.current = true;
+      }
+    }
+  }, [displayValue, isEditing, canEdit, placeholder]);
+
+  // Parse formatted content for display mode
+  const formattedContent = useMemo(() => {
+    if (!enableFormatting || !displayValue || typeof displayValue !== "string") {
+      return null;
+    }
+    if (!hasFormatting(displayValue, formattingTags)) {
+      return null;
+    }
+    return parseSimpleFormatting(displayValue, formattingTags);
+  }, [displayValue, enableFormatting, formattingTags]);
 
   // Base styles for editable elements
   const baseStyle: CSSProperties = style || {};
 
+  // Build outline style string
+  const getOutlineStyle = (): string => {
+    if (outlineStyle === "none") return "none";
+    if (isEditing) return `2px solid ${focusColor}`;
+    return `2px ${outlineStyle} ${outlineColor}`;
+  };
+
   const editableStyles: CSSProperties = canEdit
     ? {
         cursor: "text",
-        outline: isEditing ? "2px solid #3b82f6" : "2px dashed transparent",
+        outline: getOutlineStyle(),
         outlineOffset: "2px",
-        borderRadius: "2px",
+        borderRadius: "4px",
         transition: "outline 0.15s ease",
         minWidth: "20px",
         display: "inline-block",
+        position: "relative",
         ...(multiline && { whiteSpace: "pre-wrap" as const }),
+        ...(isLoading && { opacity: 0.7 }),
         ...baseStyle,
       }
     : baseStyle;
 
-  const content = localValue || children || defaultValue;
+  const content = displayValue || children || defaultValue;
 
-  // If not admin or not in edit mode, just render the content
+  // If not admin or not in edit mode, render with formatting
   if (!canEdit) {
     const Tag = as;
     return (
       <Tag className={className} style={baseStyle}>
-        {content}
+        {formattedContent
+          ? renderFormattedContent(formattedContent)
+          : content}
       </Tag>
     );
   }
 
-  // For editable mode, use span to avoid TypeScript complexity
+  // For editable mode - use uncontrolled pattern
+  // IMPORTANT: Don't pass children to prevent cursor jumping
+  // Content is set via ref in useEffect
   return (
     <span
       ref={ref}
-      className={`litecms-editable ${className}`}
+      className={`litecms-editable ${className} ${isLoading ? "litecms-loading" : ""}`}
       style={editableStyles}
       contentEditable
       suppressContentEditableWarning
-      onInput={handleInput}
-      onBlur={handleBlur}
       onFocus={handleFocus}
+      onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      data-field={field}
+      data-field={fullField}
+      data-locale={locale}
       data-placeholder={placeholder}
-    >
-      {localValue || placeholder}
-    </span>
+      data-editable="true"
+    />
   );
 }

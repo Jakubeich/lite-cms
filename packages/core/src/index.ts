@@ -127,6 +127,10 @@ export {
   createFieldPath,
   parseFieldPath,
   diffText,
+  // Text formatting utilities
+  parseSimpleFormatting,
+  hasFormatting,
+  DEFAULT_FORMATTING_TAGS,
   // File utilities
   formatFileSize,
   getFileExtension,
@@ -141,3 +145,6 @@ export {
   // Number utilities
   clamp,
 } from "./utils";
+
+// Text formatting types
+export type { FormattingTag, FormattedSegment } from "./utils";

@@ -304,3 +304,131 @@ export function setByPath<T extends Record<string, unknown>>(
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Simple formatting tag definition
+ */
+export interface FormattingTag {
+  /** Opening tag pattern (regex) */
+  pattern: RegExp;
+  /** HTML tag to use for replacement */
+  tag: string;
+  /** CSS class to apply */
+  className?: string;
+}
+
+/**
+ * Default formatting tags for simple text formatting
+ * Supports: **bold**, <bold>, <b>, <strong>
+ */
+export const DEFAULT_FORMATTING_TAGS: FormattingTag[] = [
+  // Markdown **bold**
+  { pattern: /\*\*([^*]+)\*\*/g, tag: "strong", className: "litecms-bold" },
+  // HTML <bold> (normalize to strong)
+  { pattern: /<bold>(.*?)<\/bold>/gi, tag: "strong", className: "litecms-bold" },
+  // HTML <b> (normalize to strong)
+  { pattern: /<b>(.*?)<\/b>/gi, tag: "strong", className: "litecms-bold" },
+];
+
+/**
+ * Parse simple formatting tags in text
+ * Returns an array of segments with type and content
+ *
+ * @example
+ * parseSimpleFormatting("Hello **world**!")
+ * // Returns: [
+ * //   { type: "text", content: "Hello " },
+ * //   { type: "strong", content: "world", className: "litecms-bold" },
+ * //   { type: "text", content: "!" }
+ * // ]
+ */
+export interface FormattedSegment {
+  type: "text" | "strong" | "em" | "code" | string;
+  content: string;
+  className?: string;
+}
+
+export function parseSimpleFormatting(
+  text: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _tags?: FormattingTag[]
+): FormattedSegment[] {
+  if (!text) return [];
+
+  // Use a simple marker-based approach to avoid regex position issues
+  // First, normalize all bold variants to a unique marker
+  const MARKER_START = "\u0000BOLD_START\u0000";
+  const MARKER_END = "\u0000BOLD_END\u0000";
+
+  let processed = text;
+
+  // Replace all bold variants with markers (order matters - check longer patterns first)
+  // **text** markdown
+  processed = processed.replace(/\*\*([^*]+)\*\*/g, `${MARKER_START}$1${MARKER_END}`);
+  // <bold>text</bold>
+  processed = processed.replace(/<bold>(.*?)<\/bold>/gi, `${MARKER_START}$1${MARKER_END}`);
+  // <b>text</b>
+  processed = processed.replace(/<b>(.*?)<\/b>/gi, `${MARKER_START}$1${MARKER_END}`);
+  // <strong>text</strong>
+  processed = processed.replace(/<strong>(.*?)<\/strong>/gi, `${MARKER_START}$1${MARKER_END}`);
+
+  // If no markers were added, return as single text segment
+  if (!processed.includes(MARKER_START)) {
+    return [{ type: "text", content: text }];
+  }
+
+  // Split by markers and build segments
+  const segments: FormattedSegment[] = [];
+  const parts = processed.split(MARKER_START);
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+
+    if (i === 0) {
+      // First part is always plain text (before any marker)
+      if (part) {
+        segments.push({ type: "text", content: part });
+      }
+    } else {
+      // This part starts after a MARKER_START, so it contains bold content + maybe text after
+      const endIndex = part.indexOf(MARKER_END);
+      if (endIndex !== -1) {
+        const boldContent = part.slice(0, endIndex);
+        const afterContent = part.slice(endIndex + MARKER_END.length);
+
+        if (boldContent) {
+          segments.push({ type: "strong", content: boldContent, className: "litecms-bold" });
+        }
+        if (afterContent) {
+          segments.push({ type: "text", content: afterContent });
+        }
+      } else {
+        // No end marker found (shouldn't happen with valid input)
+        if (part) {
+          segments.push({ type: "text", content: part });
+        }
+      }
+    }
+  }
+
+  return segments;
+}
+
+/**
+ * Check if text contains any formatting tags
+ */
+export function hasFormatting(
+  text: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _tags?: FormattingTag[]
+): boolean {
+  if (!text) return false;
+
+  // Check for any bold formatting variants
+  return (
+    /\*\*[^*]+\*\*/.test(text) ||
+    /<bold>.*?<\/bold>/i.test(text) ||
+    /<b>.*?<\/b>/i.test(text) ||
+    /<strong>.*?<\/strong>/i.test(text)
+  );
+}

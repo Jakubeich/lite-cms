@@ -1,6 +1,7 @@
 // Components
 export { LiteCMSProvider } from "./context/CMSContext";
 export { Editable } from "./components/Editable";
+export type { EditableProps, EditableOutlineStyle } from "./components/Editable";
 
 // Hooks
 export { useEditMode } from "./hooks/useEditMode";
